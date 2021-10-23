@@ -35,17 +35,18 @@ app.use(morgan('tiny'));
 app.post('/errors', (req, res) => {
     const request = req.body;
     const source = {
-        component:request.source.component,
-        host:request.source.host
+        component: request.source.component,
+        host: request.source.host
     }
     const error = new Error({
         name: request.metadata.name,
         namespace: request.metadata.namespace,
-        reason:  request.reason,
-        message:  request.message,
-        source:source,
-        time:  request.metadata.creationTimestamp,
-        type:  request.Warning
+        reason: request.reason,
+        message: request.message,
+        source: source,
+        time: request.metadata.creationTimestamp,
+        type: request.Warning,
+        createDate: new Date()
 
     });
     error.save().then((createdError => {
@@ -60,16 +61,25 @@ app.post('/errors', (req, res) => {
 })
 
 
-app.get('/errors', (req, res) => {
-    Error.find({}).then((createdErrors => {
-        io.sockets.emit('errorEvent', { message: createdErrors });
+
+app.get('/errors', async (req, res) => {
+    var dateFilter = new Date();
+    dateFilter.setDate(dateFilter.getDate() - 1);
+    var createdErrors = await Error.find({
+        createDate: {
+            $gte: new Date(dateFilter)
+        }
+    }).sort({createDate:'desc'})
+    if (createdErrors.length) {
         res.status(201).json(createdErrors)
-    })).catch((err) => {
+    }
+    else {
         res.status(500).json({
-            error: err,
+            error: 'NOT_FOUND',
             success: false
         })
-    })
+    }
+
 })
 
 //Database

@@ -13,7 +13,8 @@ const errorSchema = new Schema({
     message: String,
     source: sourceSchema,
     time: String,
-    type: String
+    type: String,
+    createDate: Date
 });
 
 exports.Error = mongoose.model('Error', errorSchema);
