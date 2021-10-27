@@ -2,6 +2,7 @@ const express = require('express');
 const app = express();
 const bodyParser = require('body-parser');
 const morgan = require('morgan');
+const nodemailer = require('nodemailer');
 const mongoose = require('mongoose');
 const socketIo = require('socket.io');
 const cors = require('cors');
@@ -21,6 +22,7 @@ io.on('connection', (socket) => {
 });
 
 const api = process.env.API_URL;
+const ENV = process.env
 
 
 app.use(cors());
@@ -38,6 +40,7 @@ app.post('/errors', (req, res) => {
         component: request.source.component,
         host: request.source.host
     }
+
     const error = new Error({
         name: request.metadata.name,
         namespace: request.metadata.namespace,
@@ -49,6 +52,10 @@ app.post('/errors', (req, res) => {
         createDate: new Date()
 
     });
+
+    if(error.reason === 'Warning') {
+        sendMail(error)
+    }
     error.save().then((createdError => {
         io.sockets.emit('errorEvent', { message: error });
         res.status(201).json(createdError)
@@ -81,6 +88,33 @@ app.get('/errors', async (req, res) => {
     }
 
 })
+
+const sendMail = (error) => {
+    var recepents = process.env.TO.split(' ')
+    console.log(recepents)
+    var transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: ENV.EMAIL_ADDRESS,
+          pass: ENV.PASSWORD
+        }
+      });
+      
+      var mailOptions = {
+        from: ENV.EMAIL_ADDRESS,
+        to: recepents,
+        subject: error.name ,
+        html: '<p>Reason: '+error.reason+'</p> <p>Message: '+error.message+'</p>' 
+      };
+      
+      transporter.sendMail(mailOptions, function(error, info){
+        if (error) {
+          console.log(error);
+        } else {
+          console.log('Email sent: ' + info.response);
+        }
+      });
+}
 
 //Database
 mongoose.connect(process.env.CONNECTION_STRING, {
